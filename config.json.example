@@ -1,0 +1,12 @@
+{
+  "nick": "MyBot",
+  "realname": "Botty",
+  "server": {
+    "address": "ssl.efnet.org",
+    "port": "6697",
+    "tls": true,
+    "channels": [
+      "#navytrap"
+    ]
+  }
+}
