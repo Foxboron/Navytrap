@@ -2,20 +2,30 @@ package net
 
 import (
 	"fmt"
-	"io"
 	"log"
+	"net"
 )
 
-func Writeln(w io.Writer, s string) {
-	if _, err := fmt.Fprint(w, s+"\r\n"); err != nil {
+type ConnectionInterface interface {
+}
+
+type Connection struct {
+	net.Conn
+	Server string
+	Tls    bool
+	Port   string
+}
+
+func (c *Connection) Writeln(s string) {
+	if _, err := fmt.Fprint(c, s+"\r\n"); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func Writef(w io.Writer, form string, args ...interface{}) {
-	Writeln(w, fmt.Sprintf(form, args...))
+func (c *Connection) Writef(form string, args ...interface{}) {
+	c.Writeln(fmt.Sprintf(form, args...))
 }
 
-func WriteChannel(w io.Writer, c string, s string) {
-	Writef(w, "PRIVMSG %s :%s", c, s)
+func (c *Connection) WriteChannel(ch string, s string) {
+	c.Writef("PRIVMSG %s :%s", ch, s)
 }

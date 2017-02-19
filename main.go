@@ -15,5 +15,5 @@ var clientRealName string
 func main() {
 	loader.RunPlugins()
 	config := config.ParseConfig("./config.json")
-	net.Connection(config)
+	net.CreateConnection(config)
 }

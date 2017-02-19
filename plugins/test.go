@@ -5,8 +5,8 @@ import parser "github.com/Foxboron/Navytrap/parser"
 import net "github.com/Foxboron/Navytrap/net"
 
 func Run(c *loader.Cmds) error {
-	c.RegisterPrivmsg("!test", func(n *net.Connection, p parser.Parsed) {
-		n.WriteChannel(p.Channel, "test")
+	c.RegisterPrivmsg("!anothertest", func(n *net.Connection, p parser.Parsed) {
+		n.WriteChannel(p.Channel, "Another test!")
 	})
 	return nil
 }

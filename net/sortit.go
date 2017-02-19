@@ -11,11 +11,18 @@ import (
 	"time"
 
 	config "github.com/Foxboron/Navytrap/config"
-	"github.com/Foxboron/Navytrap/loader"
 	"github.com/Foxboron/Navytrap/parser"
 )
 
-var msgChan = make(chan string)           //dunno yet
+type Pkg struct {
+	Conn   *Connection
+	Parsed parser.Parsed
+}
+
+var (
+	Privmsg = make(chan *Pkg)
+)
+
 var serverChan = make(chan parser.Parsed) // output from server
 var done = make(chan struct{})
 
@@ -31,7 +38,7 @@ func mustWritef(w io.Writer, form string, args ...interface{}) {
 
 // listenServer scans for server messages on conn and sends
 // them on serverChan.
-func listenServer(conn net.Conn) {
+func listenServer(conn *Connection) {
 	in := bufio.NewScanner(conn)
 	for in.Scan() {
 		if p, err := parser.Parse(in.Text()); err != nil {
@@ -64,7 +71,7 @@ func connServer(server string, port string, useTLS bool) net.Conn {
 	return conn
 }
 
-func handleServer(conn net.Conn, p parser.Parsed) {
+func handleServer(conn *Connection, p parser.Parsed) {
 	switch p.Cmd {
 	case "PING":
 		mustWritef(conn, "PONG %s", p.Args[0])
@@ -74,17 +81,13 @@ func handleServer(conn net.Conn, p parser.Parsed) {
 		fallthrough
 	default:
 		if p.Cmd == "PRIVMSG" {
-			r := loader.Cc.FindCmd(p.Args[1])
-			fmt.Println(r)
-			if r != nil {
-				p.Conn = conn
-				r(p)
-			}
+			// Kill me nao
+			Privmsg <- &Pkg{Conn: conn, Parsed: p}
 		}
 	}
 }
 
-func login(conn net.Conn, server string, pass string, name string) {
+func login(conn *Connection, server string, pass string, name string) {
 	if pass != "" {
 		mustWritef(conn, "PASS %s", pass)
 	}
@@ -92,17 +95,13 @@ func login(conn net.Conn, server string, pass string, name string) {
 	mustWritef(conn, "USER %s localhost %s :%s", name, name, name)
 }
 
-func run(conn net.Conn, server string, channels []string) {
+func run(conn *Connection, server string, channels []string) {
 	go listenServer(conn)
 	ticker := time.NewTicker(1 * time.Minute)
 	for {
 	loop:
 		select {
 		case <-done:
-			for range msgChan {
-				// TODO: IDK fam
-				// drain remaining
-			}
 			break loop
 		case <-ticker.C: // FIXME: ping timeout check
 			mustWritef(conn, "PING %s", server)
@@ -117,13 +116,14 @@ func run(conn net.Conn, server string, channels []string) {
 	}
 }
 
-func joinChannel(conn net.Conn, c string) {
+func joinChannel(conn *Connection, c string) {
 	mustWritef(conn, "JOIN %s", c)
 }
 
-func Connection(config config.Config) {
+func CreateConnection(config config.Config) {
 	conn := connServer(config.Servers.Address, config.Servers.Port, config.Servers.Tls)
-	defer conn.Close()
-	login(conn, config.Servers.Address, os.Getenv(""), config.Nick)
-	run(conn, config.Servers.Address, config.Servers.Channels)
+	c := &Connection{Conn: conn}
+	defer c.Close()
+	login(c, config.Servers.Address, os.Getenv(""), config.Nick)
+	run(c, config.Servers.Address, config.Servers.Channels)
 }

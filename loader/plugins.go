@@ -2,11 +2,13 @@ package loader
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"plugin"
 	"regexp"
 
+	net "github.com/Foxboron/Navytrap/net"
 	"github.com/Foxboron/Navytrap/parser"
 )
 
@@ -14,35 +16,42 @@ type cmd func(string) error
 
 var cmdsMap = make(map[string]cmd)
 
-type Cmd func(parser.Parsed)
+// Horrible hack :c
+
+type Cmd func(*net.Connection, parser.Parsed)
 
 type Cmds struct {
-	Cmds map[string]Cmd
+	Privmsg map[string]Cmd
 }
 
-var Cc = &Cmds{Cmds: make(map[string]Cmd)}
+var Cc = &Cmds{Privmsg: make(map[string]Cmd)}
 
-func (c *Cmds) RegisterCmd(s string, f Cmd) {
-	c.Cmds[s] = f
+func (c *Cmds) RegisterPrivmsg(s string, f Cmd) {
+	c.Privmsg[s] = f
 }
 
-func (c *Cmds) FindCmd(s string) Cmd {
-	for k, v := range c.Cmds {
-		matched, _ := regexp.MatchString("^"+k, s)
-		if matched {
-			return v
+func (c *Cmds) Listen() {
+	// PRIVMSG
+	go func() {
+		// TODO: Find a better way to handle this
+		for {
+			select {
+			case p := <-net.Privmsg:
+				parsed := p.Parsed
+				conn := p.Conn
+				for k, v := range c.Privmsg {
+					matched, _ := regexp.MatchString("^"+k, parsed.Args[1])
+					if matched {
+						go v(conn, parsed)
+					}
+				}
+			}
 		}
-	}
-	return nil
+	}()
 }
 
-func RunPlugins() error {
-	wd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("could not find current directory: %v", err)
-	}
-	pluginsDir := filepath.Join(wd, "plugins")
-	p, err := plugin.Open(pluginsDir + "/plugin.so")
+func LoadPlugins(name string) error {
+	p, err := plugin.Open(name)
 	if err != nil {
 		fmt.Println(fmt.Errorf("could not open plugin: %v", err))
 
@@ -59,5 +68,32 @@ func RunPlugins() error {
 	if err := runFunc(Cc); err != nil {
 		return fmt.Errorf("plugin failed with error %v", err)
 	}
+	return nil
+}
+
+func RunPlugins() error {
+	wd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("could not find current directory: %v", err)
+	}
+
+	pluginsDir := filepath.Join(wd, "plugins")
+
+	dir, err := os.Open(pluginsDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer dir.Close()
+	names, err := dir.Readdirnames(-1)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, name := range names {
+		if filepath.Ext(name) == ".so" {
+			LoadPlugins(pluginsDir + "/" + name)
+		}
+	}
+	Cc.Listen()
 	return nil
 }

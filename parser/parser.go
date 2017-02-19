@@ -4,13 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"net"
 	"strconv"
 	"strings"
 )
 
 type Parsed struct {
-	Conn    net.Conn
 	Nick    string   // source nick (RFC 1459 <servername>)
 	Uinf    string   // user info
 	Cmd     string   // IRC command
