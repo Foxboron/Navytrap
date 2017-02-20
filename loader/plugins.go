@@ -51,10 +51,9 @@ func (c *Cmds) Listen() {
 }
 
 func LoadPlugins(name string) error {
+	fmt.Println(name)
 	p, err := plugin.Open(name)
 	if err != nil {
-		fmt.Println(fmt.Errorf("could not open plugin: %v", err))
-
 		return fmt.Errorf("could not open plugin: %v", err)
 	}
 	run, err := p.Lookup("Run")
@@ -65,9 +64,7 @@ func LoadPlugins(name string) error {
 	if !ok {
 		return fmt.Errorf("found Run but type is %T instead of func() error", run)
 	}
-	if err := runFunc(Cc); err != nil {
-		return fmt.Errorf("plugin failed with error %v", err)
-	}
+	go runFunc(Cc)
 	return nil
 }
 
@@ -91,7 +88,10 @@ func RunPlugins() error {
 
 	for _, name := range names {
 		if filepath.Ext(name) == ".so" {
-			LoadPlugins(pluginsDir + "/" + name)
+			err := LoadPlugins(pluginsDir + "/" + name)
+			if err != nil {
+				fmt.Println(err)
+			}
 		}
 	}
 	Cc.Listen()

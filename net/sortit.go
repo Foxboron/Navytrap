@@ -26,6 +26,8 @@ var (
 var serverChan = make(chan parser.Parsed) // output from server
 var done = make(chan struct{})
 
+var Conn *Connection
+
 func mustWriteln(w io.Writer, s string) {
 	if _, err := fmt.Fprint(w, s+"\r\n"); err != nil {
 		log.Fatal(err)
@@ -122,8 +124,8 @@ func joinChannel(conn *Connection, c string) {
 
 func CreateConnection(config config.Config) {
 	conn := connServer(config.Servers.Address, config.Servers.Port, config.Servers.Tls)
-	c := &Connection{Conn: conn}
-	defer c.Close()
-	login(c, config.Servers.Address, os.Getenv(""), config.Nick)
-	run(c, config.Servers.Address, config.Servers.Channels)
+	Conn = &Connection{Conn: conn}
+	defer Conn.Close()
+	login(Conn, config.Servers.Address, os.Getenv(""), config.Nick)
+	run(Conn, config.Servers.Address, config.Servers.Channels)
 }
