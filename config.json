@@ -1,0 +1,11 @@
+{
+  "nick": "Navytrap",
+  "realname": "Trappy",
+  "servers": [{
+    "address": "irc.efnet.org",
+    "port": "6667",
+    "channels": [
+      "#navytrap"
+    ]
+  }]
+}
