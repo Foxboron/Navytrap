@@ -4,7 +4,7 @@ import (
 	loader "github.com/Foxboron/Navytrap/loader"
 
 	net "github.com/Foxboron/Navytrap/net"
-	"gopkg.in/gin-gonic/gin.v1"
+	gin "gopkg.in/gin-gonic/gin.v1"
 )
 
 func Run(c *loader.Cmds) error {
