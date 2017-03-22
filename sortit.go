@@ -27,7 +27,7 @@ import (
 // of contexts. This should be redone...
 type Pkg struct {
 	Conn *Connection
-	Msg  Parsed
+	Msg  *Parsed
 }
 
 var (
@@ -35,7 +35,7 @@ var (
 	Servers = make(map[string]Connection)
 )
 
-var serverChan = make(chan Parsed) // output from server
+var serverChan = make(chan *Parsed) // output from server
 var done = make(chan struct{})
 
 var Conn *Connection
@@ -85,7 +85,7 @@ func connServer(server string, port string, useTLS bool) net.Conn {
 	return conn
 }
 
-func handleServer(conn *Connection, p Parsed) {
+func handleServer(conn *Connection, p *Parsed) {
 	switch p.Cmd {
 	case "PING":
 		mustWritef(conn, "PONG %s", p.Args[0])

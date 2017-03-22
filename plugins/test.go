@@ -3,15 +3,21 @@ package main
 import (
 	"fmt"
 
-	"github.com/Foxboron/Navytrap/loader"
-	"github.com/Foxboron/Navytrap/net"
-	"github.com/Foxboron/Navytrap/parser"
+	"github.com/foxboron/navytrap"
 )
 
-func Run(c *loader.Cmds) error {
-	c.RegisterPrivmsg("!test", func(n *net.Connection, p parser.Parsed) {
+func Run() error {
+	navytrap.RegisterPrivmsg("!test", func(n *navytrap.Connection, p *navytrap.Parsed) {
 		fmt.Println("wehey")
 		n.WriteChannel(p.Channel, "Another test!")
 	})
+
+	// navytrap.RegisterPrivmsg("!\w* is .*", func(n *Connection, p *Parsed) {
+	// 	fmt.Println(p.Msg)
+	// })
+
+	// navytrap.RegisterPrivmsg("!.*", func(n *Connection, p *Parsed) {
+	// 	fmt.Println(p.Msg)
+	// })
 	return nil
 }

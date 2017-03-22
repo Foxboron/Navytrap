@@ -6,9 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"plugin"
+	"regexp"
+	"strings"
 )
 
 type cmd func(string) error
+type Cmd func(*Connection, *Parsed)
 
 var cmdsMap = make(map[string]cmd)
 
@@ -29,53 +32,44 @@ var (
 	Misc = make(chan *Pkg)
 )
 
-// Horrible hack :c
+var (
+	Privmsgs = make(map[string]Cmd)
+	Joins    = make(map[string]Cmd)
+	// Part    map[string]Cmd
+	// Kick    map[string]Cmd
+	// Mode    map[string]Cmd
+	Signals = make(map[string]Cmd)
+	Events  = make(map[string]Cmd)
+)
 
-type Cmd func(*Connection, Parsed)
-
-type Cmds struct {
-	Privmsg map[string]Cmd
-	Join    map[string]Cmd
-	Part    map[string]Cmd
-	Kick    map[string]Cmd
-	Mode    map[string]Cmd
-	Event   map[string]Cmd
-	Signal  map[string]Cmd
+func RegisterPrivmsg(s string, f Cmd) {
+	fmt.Println(Privmsgs)
+	Privmsgs[s] = f
 }
 
-var Cc = &Cmds{Privmsg: make(map[string]Cmd)}
-
-func (c *Cmds) RegisterPrivmsg(s string, f Cmd) {
-	c.Privmsg[s] = f
+func RegisterEvent(event string, f Cmd) {
+	fmt.Println(Events)
+	Events[event] = f
 }
 
-func (c *Cmds) RegisterEvent(event string, f Cmd) {
-	if c.Event == nil {
-		c.Event = make(map[string]Cmd)
-	}
-	c.Event[event] = f
-}
-
-func (c *Cmds) Listen() {
+func Listen() {
 	// PRIVMSG
 	go func() {
 		// TODO: Find a better way to handle this
 		for {
 			select {
 			case p := <-Signal:
-				fmt.Println(p.Conn)
-				fmt.Println(p.Msg.Cmd)
-				if event, ok := c.Event[p.Msg.Cmd]; ok {
+				if event, ok := Events[p.Msg.Cmd]; ok {
 					go event(p.Conn, p.Msg)
 				}
-				// parsed := p.Parsed
-				// conn := p.Conn
-				// for k, v := range c.Privmsg {
-				// 	matched, _ := regexp.MatchString("^"+k, parsed.Args[1])
-				// 	if matched {
-				// 		go v(conn, parsed)
-				// 	}
-				// }
+				if p.Msg.Cmd == "PRIVMSG" {
+					for k, v := range Privmsgs {
+						matched, _ := regexp.MatchString("^"+k, p.Msg.Args[1])
+						if matched {
+							go v(p.Conn, p.Msg)
+						}
+					}
+				}
 			}
 		}
 	}()
@@ -91,11 +85,11 @@ func LoadPlugin(name string) error {
 	if err != nil {
 		return fmt.Errorf("could not find Run function: %v", err)
 	}
-	runFunc, ok := run.(func(*Cmds) error)
+	runFunc, ok := run.(func() error)
 	if !ok {
 		return fmt.Errorf("found Run but type is %T instead of func() error", run)
 	}
-	go runFunc(Cc)
+	go runFunc()
 	return nil
 }
 
@@ -125,18 +119,43 @@ func initPlugins() error {
 			}
 		}
 	}
-	Cc.Listen()
+	Listen()
 	return nil
 }
+
+var Factoids = make(map[string]string)
 
 func init() {
 	initPlugins()
 	// Join channels
-	Cc.RegisterEvent("266", func(net *Connection, p Parsed) {
+	fmt.Println("lol")
+
+	RegisterEvent("266", func(net *Connection, p *Parsed) {
 		fmt.Println("GOT 266 EVENT!")
 		for _, c := range net.Channels {
 			fmt.Println(c)
 			net.JoinChannel(c)
+		}
+	})
+
+	RegisterPrivmsg("!\\w* is .*", func(n *Connection, p *Parsed) {
+		addition := strings.SplitN(p.Args[1], " is ", 2)
+		Factoids[addition[0][1:]] = addition[1]
+	})
+
+	RegisterPrivmsg("!.*", func(n *Connection, p *Parsed) {
+		is_fact := strings.Split(p.Args[1], " ")[0][1:]
+
+		if fact, ok := Factoids[is_fact]; ok {
+			n.WriteChannel(p.Channel, fact)
+		}
+	})
+
+	RegisterPrivmsg("!give \\w* .*", func(n *Connection, p *Parsed) {
+		give := strings.SplitN(p.Args[1], " ", 3)
+
+		if fact, ok := Factoids[give[2]]; ok {
+			n.WriteChannel(p.Channel, give[1]+": "+fact)
 		}
 	})
 }
