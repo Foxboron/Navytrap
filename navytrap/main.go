@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/Foxboron/Navytrap"
+	"github.com/foxboron/navytrap"
 )
 
 func main() {
