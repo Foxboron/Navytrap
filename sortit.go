@@ -32,13 +32,11 @@ type Pkg struct {
 
 var (
 	wg      sync.WaitGroup
-	Servers = make(map[string]Connection)
+	Servers = make(map[string]*Connection)
 )
 
-var serverChan = make(chan *Parsed) // output from server
+// var serverChan = make(chan *Parsed) // output from server
 var done = make(chan struct{})
-
-var Conn *Connection
 
 func mustWriteln(w io.Writer, s string) {
 	if _, err := fmt.Fprint(w, s+"\r\n"); err != nil {
@@ -52,13 +50,13 @@ func mustWritef(w io.Writer, form string, args ...interface{}) {
 
 // listenServer scans for server messages on conn and sends
 // them on serverChan.
-func listenServer(conn *Connection) {
-	in := bufio.NewScanner(conn)
+func (c *Connection) listenServer() {
+	in := bufio.NewScanner(c.Conn)
 	for in.Scan() {
 		if p, err := Parse(in.Text()); err != nil {
 			log.Print("parse error:", err)
 		} else {
-			serverChan <- p
+			c.ServerChan <- p
 		}
 	}
 	close(done)
@@ -85,30 +83,30 @@ func connServer(server string, port string, useTLS bool) net.Conn {
 	return conn
 }
 
-func handleServer(conn *Connection, p *Parsed) {
+func (c *Connection) handleServer(p *Parsed) {
 	switch p.Cmd {
 	case "PING":
-		mustWritef(conn, "PONG %s", p.Args[0])
+		mustWritef(c.Conn, "PONG %s", p.Args[0])
 	case "PONG":
 		break
 	case "PART":
 		fallthrough
 	default:
-		sendPkg := &Pkg{Conn: conn, Msg: p}
+		sendPkg := &Pkg{Conn: c, Msg: p}
 		Signal <- sendPkg
 	}
 }
 
-func login(conn *Connection, server string, pass string, name string) {
+func (c *Connection) login(server string, pass string, name string) {
 	if pass != "" {
-		mustWritef(conn, "PASS %s", pass)
+		mustWritef(c.Conn, "PASS %s", pass)
 	}
-	mustWritef(conn, "NICK %s", name)
-	mustWritef(conn, "USER %s localhost %s :%s", name, name, name)
+	mustWritef(c.Conn, "NICK %s", name)
+	mustWritef(c.Conn, "USER %s localhost %s :%s", name, name, name)
 }
 
-func run(conn *Connection, server string, channels []string) {
-	go listenServer(conn)
+func (c *Connection) run(server string, channels []string) {
+	go c.listenServer()
 	ticker := time.NewTicker(1 * time.Minute)
 	for {
 	loop:
@@ -116,29 +114,29 @@ func run(conn *Connection, server string, channels []string) {
 		case <-done:
 			break loop
 		case <-ticker.C: // FIXME: ping timeout check
-			mustWritef(conn, "PING %s", server)
-		case s := <-serverChan:
+			mustWritef(c.Conn, "PING %s", server)
+		case s := <-c.ServerChan:
 			// if s.Cmd == "266" {
 			// 	for _, c := range channels {
 			// 		joinChannel(conn, c)
 			// 	}
 			// }
-			handleServer(conn, s)
+			c.handleServer(s)
 		}
 	}
 }
 
 func joinChannel(conn *Connection, c string) {
-	mustWritef(conn, "JOIN %s", c)
+	mustWritef(conn.Conn, "JOIN %s", c)
 }
 
 func CreateConnections() {
 	for _, server := range config.Servers {
 		conn := connServer(server.Address, server.Port, server.Tls)
-		Conn = &Connection{Conn: conn, Channels: server.Channels}
+		Conn := &Connection{Conn: conn, Channels: server.Channels, ServerChan: make(chan *Parsed)}
 		defer Conn.Close()
-		login(Conn, server.Address, os.Getenv(""), config.Nick)
-		go run(Conn, server.Address, server.Channels)
+		Conn.login(server.Address, os.Getenv(""), config.Nick)
+		go Conn.run(server.Address, server.Channels)
 		wg.Add(1)
 	}
 	wg.Wait()

@@ -11,10 +11,11 @@ type ConnectionInterface interface {
 
 type Connection struct {
 	net.Conn
-	Channels []string
-	Server   string
-	Tls      bool
-	Port     string
+	Channels   []string
+	Server     string
+	Tls        bool
+	Port       string
+	ServerChan chan *Parsed
 }
 
 func (c *Connection) Writeln(s string) {
