@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"plugin"
 	"regexp"
-	"strings"
 )
 
 type cmd func(string) error
@@ -25,11 +24,6 @@ var (
 	Part    = make(chan *Pkg)
 	Kick    = make(chan *Pkg)
 	Mode    = make(chan *Pkg)
-
-	// Misc events we will be looking at
-	// as an example;
-	// event: 266 - join channels
-	Misc = make(chan *Pkg)
 )
 
 var (
@@ -43,12 +37,10 @@ var (
 )
 
 func RegisterPrivmsg(s string, f Cmd) {
-	fmt.Println(Privmsgs)
 	Privmsgs[s] = f
 }
 
 func RegisterEvent(event string, f Cmd) {
-	fmt.Println(Events)
 	Events[event] = f
 }
 
@@ -123,39 +115,8 @@ func initPlugins() error {
 	return nil
 }
 
-var Factoids = make(map[string]string)
+// Plugins until i get the other code to work
 
 func init() {
 	initPlugins()
-	// Join channels
-	fmt.Println("lol")
-
-	RegisterEvent("266", func(net *Connection, p *Parsed) {
-		fmt.Println("GOT 266 EVENT!")
-		for _, c := range net.Channels {
-			fmt.Println(c)
-			net.JoinChannel(c)
-		}
-	})
-
-	RegisterPrivmsg("!\\w* is .*", func(n *Connection, p *Parsed) {
-		addition := strings.SplitN(p.Args[1], " is ", 2)
-		Factoids[addition[0][1:]] = addition[1]
-	})
-
-	RegisterPrivmsg("!.*", func(n *Connection, p *Parsed) {
-		is_fact := strings.Split(p.Args[1], " ")[0][1:]
-
-		if fact, ok := Factoids[is_fact]; ok {
-			n.WriteChannel(p.Channel, fact)
-		}
-	})
-
-	RegisterPrivmsg("!give \\w* .*", func(n *Connection, p *Parsed) {
-		give := strings.SplitN(p.Args[1], " ", 3)
-
-		if fact, ok := Factoids[give[2]]; ok {
-			n.WriteChannel(p.Channel, give[1]+": "+fact)
-		}
-	})
 }
