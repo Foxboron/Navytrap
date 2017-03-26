@@ -2,10 +2,13 @@ package navytrap
 
 import (
 	"strings"
+	"time"
 
+	"github.com/gin-gonic/gin"
+
+	"github.com/gin-gonic/contrib/ginrus"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
-	"gopkg.in/gin-gonic/gin.v1"
 )
 
 type Factoid struct {
@@ -94,7 +97,8 @@ func init() {
 		}
 	})
 
-	r := gin.Default()
+	r := gin.New()
+	r.Use(ginrus.Ginrus(logger, time.RFC3339, true))
 	var authconfig AuthConfig
 	ParseModuleConfig(&authconfig)
 

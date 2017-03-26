@@ -2,11 +2,12 @@ package navytrap
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"plugin"
 	"regexp"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 type cmd func(string) error
@@ -24,6 +25,11 @@ var (
 	Part    = make(chan *Pkg)
 	Kick    = make(chan *Pkg)
 	Mode    = make(chan *Pkg)
+
+	// Misc events we will be looking at
+	// as an example;
+	// event: 266 - join channels
+	Misc = make(chan *Pkg)
 )
 
 var (
@@ -37,10 +43,18 @@ var (
 )
 
 func RegisterPrivmsg(s string, f Cmd) {
+	logger.WithFields(log.Fields{
+		"event": s,
+		"type":  "privmsg",
+	}).Debug("Registered event")
 	Privmsgs[s] = f
 }
 
 func RegisterEvent(event string, f Cmd) {
+	logger.WithFields(log.Fields{
+		"event": event,
+		"type":  "privmsg",
+	}).Debug("Registered event")
 	Events[event] = f
 }
 
@@ -68,7 +82,9 @@ func Listen() {
 }
 
 func LoadPlugin(name string) error {
-	fmt.Println(name)
+	logger.WithFields(log.Fields{
+		"plugin": name}).Debug("Loading module...")
+
 	p, err := plugin.Open(name)
 	if err != nil {
 		return fmt.Errorf("could not open plugin: %v", err)
@@ -115,7 +131,7 @@ func initPlugins() error {
 	return nil
 }
 
-// Plugins until i get the other code to work
+var Factoids = make(map[string]string)
 
 func init() {
 	initPlugins()

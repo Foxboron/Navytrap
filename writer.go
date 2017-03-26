@@ -2,7 +2,6 @@ package navytrap
 
 import (
 	"fmt"
-	"log"
 	"net"
 )
 
@@ -19,9 +18,9 @@ type Connection struct {
 }
 
 func (c *Connection) Writeln(s string) {
-	fmt.Println(s)
+	logger.Info(s)
 	if _, err := fmt.Fprint(c, s+"\r\n"); err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 }
 

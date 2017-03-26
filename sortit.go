@@ -14,11 +14,12 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"sync"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // TODO: Since we use channels, and
@@ -40,7 +41,7 @@ var done = make(chan struct{})
 
 func mustWriteln(w io.Writer, s string) {
 	if _, err := fmt.Fprint(w, s+"\r\n"); err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 }
 
@@ -54,7 +55,7 @@ func (c *Connection) listenServer() {
 	in := bufio.NewScanner(c.Conn)
 	for in.Scan() {
 		if p, err := Parse(in.Text()); err != nil {
-			log.Print("parse error:", err)
+			logger.Print("parse error:", err)
 		} else {
 			c.ServerChan <- p
 		}
@@ -65,15 +66,15 @@ func (c *Connection) listenServer() {
 func connServer(server string, port string, useTLS bool) net.Conn {
 	tcpAddr, err := net.ResolveTCPAddr("tcp", server+":"+port)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 	conn, err := net.DialTCP("tcp", nil, tcpAddr)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 	err = conn.SetKeepAlive(true)
 	if err != nil {
-		log.Print(err)
+		logger.Print(err)
 	}
 	if useTLS {
 		return tls.Client(conn, &tls.Config{
@@ -128,6 +129,9 @@ func (c *Connection) run(server string, channels []string) {
 
 func joinChannel(conn *Connection, c string) {
 	mustWritef(conn.Conn, "JOIN %s", c)
+	logger.WithFields(log.Fields{
+		"channel": c,
+	}).Info("Joined channel")
 }
 
 func CreateConnections() {
