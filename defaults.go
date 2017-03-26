@@ -5,6 +5,7 @@ import (
 
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	"gopkg.in/gin-gonic/gin.v1"
 )
 
 type Factoid struct {
@@ -17,6 +18,10 @@ type Quote struct {
 	gorm.Model
 	Nick  string
 	Quote string
+}
+
+type AuthConfig struct {
+	Apiauth map[string]string `json:"apiauth"`
 }
 
 // Hash is Server+channel+nick
@@ -89,4 +94,40 @@ func init() {
 		}
 	})
 
+	r := gin.Default()
+	var authconfig AuthConfig
+	ParseModuleConfig(&authconfig)
+
+	auth := r.Group("/", gin.BasicAuth(authconfig.Apiauth))
+
+	auth.GET("/:server", func(c *gin.Context) {
+		server := c.Param("server")
+
+		if s, ok := Servers[server]; ok {
+			chans := s.Channels
+			c.JSON(200, gin.H{"channels": chans})
+		}
+	})
+
+	auth.POST("/privmsg/:server", func(c *gin.Context) {
+		msg := c.PostForm("msg")
+		channel := c.PostForm("channel")
+
+		server := c.Param("server")
+		if s, ok := Servers[server]; ok {
+			s.WriteChannel(channel, msg)
+		}
+	})
+
+	auth.POST("/kick/:server/:nick", func(c *gin.Context) {
+		msg := c.PostForm("msg")
+		channel := c.Param("channel")
+		nick := c.Param("nick")
+		server := c.Param("server")
+		if s, ok := Servers[server]; ok {
+			s.Writef("KICK %s %s: %s", channel, nick, msg)
+		}
+	})
+
+	go r.Run(":8080")
 }

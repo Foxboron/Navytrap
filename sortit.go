@@ -137,6 +137,7 @@ func CreateConnections() {
 		defer Conn.Close()
 		Conn.login(server.Address, os.Getenv(""), config.Nick)
 		go Conn.run(server.Address, server.Channels)
+		Servers[server.Address] = Conn
 		wg.Add(1)
 	}
 	wg.Wait()

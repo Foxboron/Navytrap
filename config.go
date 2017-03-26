@@ -21,6 +21,7 @@ type Config struct {
 }
 
 var config Config
+var configDir = "./config.json"
 
 func parseFlags(params string) {
 	// nick := flag.String("n", "", "IRC nick ($USER)")
@@ -69,6 +70,17 @@ func ParseConfig(configFile string) Config {
 	return config
 }
 
+func ParseModuleConfig(i interface{}) interface{} {
+	file, e := ioutil.ReadFile(configDir)
+	if e != nil {
+		fmt.Printf("File error: %v\n", e)
+		os.Exit(1)
+	}
+	json.Unmarshal(file, i)
+	return i
+
+}
+
 func init() {
-	config = ParseConfig("./config.json")
+	config = ParseConfig(configDir)
 }
