@@ -83,8 +83,10 @@ func init() {
 	RegisterPrivmsg("!rq \\w*", func(n *Connection, p *Parsed) {
 		var quote Quote
 		nick := strings.SplitN(p.Args[1], " ", 2)
-		db.Order("RANDOM()").First(&quote, "nick = ?", nick[1])
-		n.WriteChannel(p.Channel, "<"+quote.Nick+"> "+quote.Quote)
+		db.Order("RANDOM()").First(&quote, "nick = ?", strings.TrimSpace(nick[1]))
+		if quote.Quote != "" {
+			n.WriteChannel(p.Channel, "<"+quote.Nick+"> "+quote.Quote)
+		}
 	})
 
 }
