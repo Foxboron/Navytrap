@@ -65,6 +65,9 @@ func Listen() {
 		for {
 			select {
 			case p := <-Signal:
+				logger.WithFields(log.Fields{
+					"signal": p.Msg.Cmd,
+				}).Debug("Handled signal")
 				if event, ok := Events[p.Msg.Cmd]; ok {
 					go event(p.Conn, p.Msg)
 				}
@@ -111,19 +114,19 @@ func initPlugins() error {
 
 	dir, err := os.Open(pluginsDir)
 	if err != nil {
-		log.Fatal(err)
+		logger.Error(err)
 	}
 	defer dir.Close()
 	names, err := dir.Readdirnames(-1)
 	if err != nil {
-		log.Fatal(err)
+		logger.Error(err)
 	}
 
 	for _, name := range names {
 		if filepath.Ext(name) == ".so" {
 			err := LoadPlugin(pluginsDir + "/" + name)
 			if err != nil {
-				fmt.Println(err)
+				logger.Error(err)
 			}
 		}
 	}

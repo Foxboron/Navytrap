@@ -14,6 +14,7 @@ type Parsed struct {
 	Cmd     string   // IRC command
 	Channel string   // normalized channel name
 	Raw     string   // raw message
+	Msg     string   // Possible arguments or message from the input
 	Args    []string // parsed message parameters
 }
 
@@ -89,6 +90,9 @@ func Parse(input string) (*Parsed, error) {
 	// non-channel-specific commands will have .channel = ""
 	if _, ok := globalCmds[p.Cmd]; !ok && !isNumeric(p.Cmd) {
 		p.Channel = strings.ToLower(p.Args[0])
+	}
+	if len(p.Args) >= 2 {
+		p.Msg = p.Args[1]
 	}
 	return p, nil
 }

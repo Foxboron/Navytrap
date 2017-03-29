@@ -1,6 +1,10 @@
 package navytrap
 
 import (
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -97,41 +101,63 @@ func init() {
 		}
 	})
 
-	r := gin.New()
-	r.Use(ginrus.Ginrus(logger, time.RFC3339, true))
+	RegisterPrivmsg("https?://", func(n *Connection, p *Parsed) {
+		// resp, err := http.Get(p.Msg)
+		resp, err := http.Get(p.Msg)
+		if err != nil {
+			logger.Error("Could not read http request")
+		}
+		body, _ := ioutil.ReadAll(resp.Body)
+		bodyString := string(body)
+		re := regexp.MustCompile("<title>(.*)</title>")
+		title := re.FindStringSubmatch(bodyString)
+		fmt.Println(title)
+		if len(title) >= 2 {
+			n.WriteChannel(p.Channel, title[1])
+		}
+
+	})
+
+	// HTTP API
 	var authconfig AuthConfig
 	ParseModuleConfig(&authconfig)
 
-	auth := r.Group("/", gin.BasicAuth(authconfig.Apiauth))
+	if authconfig.Apiauth != nil {
 
-	auth.GET("/:server", func(c *gin.Context) {
-		server := c.Param("server")
+		r := gin.New()
+		r.Use(ginrus.Ginrus(logger, time.RFC3339, true))
 
-		if s, ok := Servers[server]; ok {
-			chans := s.Channels
-			c.JSON(200, gin.H{"channels": chans})
-		}
-	})
+		auth := r.Group("/", gin.BasicAuth(authconfig.Apiauth))
 
-	auth.POST("/privmsg/:server", func(c *gin.Context) {
-		msg := c.PostForm("msg")
-		channel := c.PostForm("channel")
+		auth.GET("/:server", func(c *gin.Context) {
+			server := c.Param("server")
 
-		server := c.Param("server")
-		if s, ok := Servers[server]; ok {
-			s.WriteChannel(channel, msg)
-		}
-	})
+			if s, ok := Servers[server]; ok {
+				chans := s.Channels
+				c.JSON(200, gin.H{"channels": chans})
+			}
+		})
 
-	auth.POST("/kick/:server/:nick", func(c *gin.Context) {
-		msg := c.PostForm("msg")
-		channel := c.Param("channel")
-		nick := c.Param("nick")
-		server := c.Param("server")
-		if s, ok := Servers[server]; ok {
-			s.Writef("KICK %s %s: %s", channel, nick, msg)
-		}
-	})
+		auth.POST("/privmsg/:server", func(c *gin.Context) {
+			msg := c.PostForm("msg")
+			channel := c.PostForm("channel")
 
-	go r.Run(":8080")
+			server := c.Param("server")
+			if s, ok := Servers[server]; ok {
+				s.WriteChannel(channel, msg)
+			}
+		})
+
+		auth.POST("/kick/:server/:nick", func(c *gin.Context) {
+			msg := c.PostForm("msg")
+			channel := c.Param("channel")
+			nick := c.Param("nick")
+			server := c.Param("server")
+			if s, ok := Servers[server]; ok {
+				s.Writef("KICK %s %s: %s", channel, nick, msg)
+			}
+		})
+
+		go r.Run(":8080")
+	}
 }

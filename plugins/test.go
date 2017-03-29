@@ -1,4 +1,4 @@
-package navytrap
+package main
 
 import (
 	"fmt"
