@@ -1,8 +1,11 @@
 package navytrap
 
 import (
+	"bytes"
 	"fmt"
+	"html/template"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"regexp"
 	"strings"
@@ -31,9 +34,61 @@ type AuthConfig struct {
 	Apiauth map[string]string `json:"apiauth"`
 }
 
+type Data struct {
+	Nick string
+	User string
+}
+
 // Hash is Server+channel+nick
 // Because i'm lazy
 var Grabs = make(map[string]string)
+
+// Factoid parser
+func parse(s string, d *Data) string {
+	// First pass to sort out
+	// data such as .User and .Nick
+	re := regexp.MustCompile("(\\.\\w+)")
+	s = re.ReplaceAllString(s, "{{$1}}")
+
+	tmpl, _ := template.New("firstPass").Parse(s)
+
+	var result bytes.Buffer
+	tmpl.Execute(&result, d)
+	firstPass := result.String()
+
+	// Format template
+	// Check for random part
+	// (something|something)
+	// -> {{Random "something" "something"}}
+	if matched, _ := regexp.MatchString("\\(.*\\)", firstPass); matched {
+		re := regexp.MustCompile("\\([\\w ]*\\|+[\\w \\|]+\\)")
+		parsing := re.FindAllString(firstPass, -1)
+		for _, v := range parsing {
+			var newS string
+			old := v
+			v = strings.Replace(v, "(", "{{Random \"", 1)
+			v = strings.Replace(v, "|", "\" \"", -1)
+			v = strings.Replace(v, ")", "\"}}", 1)
+			newS += v
+			firstPass = strings.Replace(firstPass, old, newS, 1)
+		}
+	}
+
+	funcMap := template.FuncMap{
+		"Random": func(s ...string) string {
+			rand.Seed(time.Now().Unix())
+			return s[rand.Intn(len(s))]
+		},
+	}
+
+	// Second pass for the random nick or other functions
+	tmpl, _ = template.New("secondPass").Funcs(funcMap).Parse(string(firstPass))
+	var second bytes.Buffer
+	tmpl.Execute(&second, d)
+	finish := second.String()
+
+	return finish
+}
 
 // Default plugins
 func init() {
@@ -65,7 +120,16 @@ func init() {
 
 		db.First(&fact, "key = ?", is_fact)
 		if fact.Value != "" {
-			n.WriteChannel(p.Channel, fact.Value)
+			data := &Data{User: p.Nick, Nick: config.Nick}
+			ret := parse(fact.Value, data)
+
+			if strings.HasPrefix(ret, "<action>") {
+				n.WriteChannel(p.Channel, "\001ACTION "+strings.Replace(ret, "<action>", "", 1)+"\001")
+			} else if strings.HasPrefix(ret, "<reply>") {
+				n.WriteChannel(p.Channel, strings.Replace(ret, "<reply>", "", 1))
+			} else {
+				n.WriteChannel(p.Channel, ret)
+			}
 		}
 	})
 
@@ -157,7 +221,6 @@ func init() {
 				s.Writef("KICK %s %s: %s", channel, nick, msg)
 			}
 		})
-
 		go r.Run(":8080")
 	}
 }
