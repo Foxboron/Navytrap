@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -42,6 +43,9 @@ type Data struct {
 // Hash is Server+channel+nick
 // Because i'm lazy
 var Grabs = make(map[string]string)
+
+// We need a lock, as N threads could be writing to this map
+var lock = sync.RWMutex{}
 
 // Factoid parser
 func parse(s string, d *Data) string {
@@ -144,12 +148,16 @@ func init() {
 	})
 
 	RegisterPrivmsg("*", func(n *Connection, p *Parsed) {
+		lock.Lock()
+		defer lock.Unlock()
 		Grabs[n.Server+p.Channel+p.Nick] = p.Args[1]
 	})
 
 	RegisterPrivmsg("!grab \\w*", func(n *Connection, p *Parsed) {
 		nick := strings.SplitN(p.Args[1], " ", 2)
 
+		lock.RLock()
+		defer lock.RUnlock()
 		if last_msg, ok := Grabs[n.Server+p.Channel+nick[1]]; ok {
 			db.Create(&Quote{Nick: nick[1], Quote: last_msg})
 			n.WriteChannel(p.Channel, p.Nick+": Tada!")
