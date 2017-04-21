@@ -173,6 +173,19 @@ func init() {
 		}
 	})
 
+	RegisterPrivmsg("!multirq \\w*", func(n *Connection, p *Parsed) {
+		var quotes string
+		nick := strings.SplitN(p.Msg, " ", 2)
+		for i := 1; i <= 5; i++ {
+			var quote Quote
+			db.Order("RANDOM()").First(&quote, "nick = ?", strings.TrimSpace(nick[1]))
+			if quote.Quote != "" {
+				quotes += " <" + quote.Nick + "> " + quote.Quote
+			}
+		}
+		n.WriteChannel(p.Channel, quotes)
+	})
+
 	RegisterPrivmsg("https?://", func(n *Connection, p *Parsed) {
 		// resp, err := http.Get(p.Msg)
 		resp, err := http.Get(p.Msg)
