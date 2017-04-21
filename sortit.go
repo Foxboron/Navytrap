@@ -115,13 +115,8 @@ func (c *Connection) run(server string, channels []string) {
 		case <-done:
 			break loop
 		case <-ticker.C: // FIXME: ping timeout check
-			mustWritef(c.Conn, "PING %s", server)
+			c.Writef("PING %s", server)
 		case s := <-c.ServerChan:
-			// if s.Cmd == "266" {
-			// 	for _, c := range channels {
-			// 		joinChannel(conn, c)
-			// 	}
-			// }
 			c.handleServer(s)
 		}
 	}

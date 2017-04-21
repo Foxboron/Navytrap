@@ -29,6 +29,7 @@ func isNumeric(s string) bool {
 
 // parse returns a filled Parsed structure representing its input.
 func Parse(input string) (*Parsed, error) {
+	logger.Debug(input)
 	var p = &Parsed{}
 	var hasPrefix bool
 	p.Raw = string(input)

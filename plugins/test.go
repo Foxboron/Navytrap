@@ -4,9 +4,10 @@ import (
 	"fmt"
 
 	"github.com/foxboron/navytrap"
+	_ "github.com/foxboron/navytrap/navytrap"
 )
 
-func Run() error {
+func main() {
 	navytrap.RegisterPrivmsg("!test", func(n *navytrap.Connection, p *navytrap.Parsed) {
 		fmt.Println("wehey")
 		n.WriteChannel(p.Channel, "Another test!")
@@ -19,5 +20,4 @@ func Run() error {
 	// navytrap.RegisterPrivmsg("!.*", func(n *Connection, p *Parsed) {
 	// 	fmt.Println(p.Msg)
 	// })
-	return nil
 }
