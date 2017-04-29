@@ -143,7 +143,16 @@ func init() {
 
 		db.First(&fact, "key = ?", give[2])
 		if fact.Value != "" {
-			n.WriteChannel(p.Channel, give[1]+": "+fact.Value)
+			data := &Data{User: give[1], Nick: config.Nick}
+			ret := parse(fact.Value, data)
+
+			if strings.HasPrefix(ret, "<action>") {
+				n.WriteChannel(p.Channel, "\001ACTION "+strings.Replace(ret, "<action>", "", 1)+"\001")
+			} else if strings.HasPrefix(ret, "<reply>") {
+				n.WriteChannel(p.Channel, strings.Replace(ret, "<reply>", "", 1))
+			} else {
+				n.WriteChannel(p.Channel, give[1]+": "+ret)
+			}
 		}
 	})
 
