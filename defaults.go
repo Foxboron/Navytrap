@@ -156,6 +156,17 @@ func init() {
 		}
 	})
 
+	RegisterPrivmsg("!no \\w* is .*", func(n *Connection, p *Parsed) {
+		var fact Factoid
+		give := strings.SplitN(p.Args[1], " ", 4)
+		db.First(&fact, "key = ?", give[1])
+		if fact.Value != "" {
+			fact.Value = give[3]
+			db.Save(&fact)
+			n.WriteChannel(p.Channel, p.Nick+": Done!")
+		}
+	})
+
 	RegisterPrivmsg("*", func(n *Connection, p *Parsed) {
 		lock.Lock()
 		defer lock.Unlock()
