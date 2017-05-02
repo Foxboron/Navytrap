@@ -36,8 +36,10 @@ type AuthConfig struct {
 }
 
 type Data struct {
-	Nick string
-	User string
+	Nick    string
+	User    string
+	Msg     string
+	Channel string
 }
 
 // Hash is Server+channel+nick
@@ -117,14 +119,17 @@ func init() {
 		n.WriteChannel(p.Channel, p.Nick+": Done!")
 	})
 
-	RegisterPrivmsg("!\\w*$", func(n *Connection, p *Parsed) {
+	RegisterPrivmsg("!\\w*( .*)?", func(n *Connection, p *Parsed) {
 		var fact Factoid
-
-		is_fact := strings.Split(p.Args[1], " ")[0][1:]
-
+		data := strings.SplitN(p.Args[1], " ", 2)
+		is_fact := data[0][1:]
+		msg := ""
+		if len(data) > 1 {
+			msg = data[1]
+		}
 		db.First(&fact, "key = ?", is_fact)
 		if fact.Value != "" {
-			data := &Data{User: p.Nick, Nick: config.Nick}
+			data := &Data{User: p.Nick, Nick: config.Nick, Channel: p.Channel, Msg: msg}
 			ret := parse(fact.Value, data)
 
 			if strings.HasPrefix(ret, "<action>") {
