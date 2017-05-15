@@ -67,7 +67,7 @@ func parse(s string, d *Data) string {
 	// (something|something)
 	// -> {{Random "something" "something"}}
 	if matched, _ := regexp.MatchString("\\(.*\\)", firstPass); matched {
-		re := regexp.MustCompile("\\([\\w ]*\\|+[\\w \\|]+\\)")
+		re := regexp.MustCompile("\\([\\p{Cc}\\d\\w ]*\\|+[\\p{Cc}\\d\\w \\|]+\\)")
 		parsing := re.FindAllString(firstPass, -1)
 		for _, v := range parsing {
 			var newS string
