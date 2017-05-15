@@ -173,9 +173,14 @@ func init() {
 	})
 
 	RegisterPrivmsg("*", func(n *Connection, p *Parsed) {
+		key := n.Server + p.Channel + p.Nick
 		lock.Lock()
 		defer lock.Unlock()
-		Grabs[n.Server+p.Channel+p.Nick] = p.Args[1]
+		if strings.Contains(p.Args[1], "!nograb") {
+			delete(Grabs, key)
+			return
+		}
+		Grabs[key] = p.Args[1]
 	})
 
 	RegisterPrivmsg("!grab \\w*", func(n *Connection, p *Parsed) {
